@@ -249,13 +249,20 @@ def evaluate(pred_labels, actual_labels):
     return true_pos, true_neg, false_pos, false_neg, sensitivity, specificity, precision, neg_pred_value, accuracy, f_score
 
 
-def normalize(arr):
-    if arr.ndim == 1:
-        arr = arr.reshape(1, -1)
+# def normalize(arr):
+#     if arr.ndim == 1:
+#         arr = arr.reshape(1, -1)
 
-    magnitudes = np.linalg.norm(arr, axis=1, keepdims=True)
+#     magnitudes = np.linalg.norm(arr, axis=1, keepdims=True)
+#     magnitudes = np.where(magnitudes == 0, 1, magnitudes)
+#     return arr / magnitudes
+
+
+def normalize(csr):
+    magnitudes = np.sqrt( csr.multiply(csr).sum(axis=1) )
     magnitudes = np.where(magnitudes == 0, 1, magnitudes)
-    return arr / magnitudes
+    
+    return csr.multiply( 1 / magnitudes )
 
 
 def classify_knn(test_arr, normalized_train, training_labels, k):
