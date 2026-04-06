@@ -100,24 +100,77 @@ def build_vocab_and_vectors(docs, min_freq=5):
     return vocab, sparse_matrix
 
 
+# def train_naive_bayes(training_vecs, training_labels, vocabulary):
+#     v = len(vocabulary)
+#     p_pos = 0
+#     p_neg = 0
+
+#     pos_counts = np.zeros(v)
+#     neg_counts = np.zeros(v)
+
+#     for vec, label in zip(training_vecs, training_labels):
+#         if label == "positive":
+#             p_pos += 1
+#             pos_counts += vec
+#         else:
+#             p_neg += 1
+#             neg_counts += vec
+
+#     p_pos /= len(training_vecs)  # (num pos docs) / (num training docs)
+#     p_neg /= len(training_vecs)  # (num neg docs) / (num training docs)
+
+#     # Laplace (Add-1) Smoothing
+#     pos_probs = (pos_counts + 1) / (
+#             pos_counts.sum() + v)  # pos_counts.sum() is the total number of words in the pos documents
+#     neg_probs = (neg_counts + 1) / (
+#             neg_counts.sum() + v)  # neg_counts.sum() is the total number of words in the neg documents
+
+#     return p_pos, p_neg, pos_probs, neg_probs
+
+
+# def train_naive_bayes(training_vecs, training_labels, vocabulary):
+#     v = len(vocabulary)
+#     p_pos = 0
+#     p_neg = 0
+
+#     pos_counts = np.zeros(v)
+#     neg_counts = np.zeros(v)
+
+#     for vec, label in zip(training_vecs, training_labels):
+#         if label == "positive":
+#             p_pos += 1
+#             pos_counts += vec.toarray().flatten()
+#         else:
+#             p_neg += 1
+#             neg_counts += vec.toarray().flatten()
+
+#     p_pos /= training_vecs.shape[0]  # (num pos docs) / (num training docs)
+#     p_neg /= training_vecs.shape[0]  # (num neg docs) / (num training docs)
+
+#     # Laplace (Add-1) Smoothing
+#     pos_probs = (pos_counts + 1) / (
+#             pos_counts.sum() + v)  # pos_counts.sum() is the total number of words in the pos documents
+#     neg_probs = (neg_counts + 1) / (
+#             neg_counts.sum() + v)  # neg_counts.sum() is the total number of words in the neg documents
+
+#     return p_pos, p_neg, pos_probs, neg_probs
+
+
 def train_naive_bayes(training_vecs, training_labels, vocabulary):
+    training_labels = np.array(training_labels)
+    
+    pos_mask = training_labels == "positive"
+    neg_mask = training_labels == "negative"
+
     v = len(vocabulary)
-    p_pos = 0
-    p_neg = 0
 
-    pos_counts = np.zeros(v)
-    neg_counts = np.zeros(v)
+    total_training_docs = training_vecs.shape[0]
 
-    for vec, label in zip(training_vecs, training_labels):
-        if label == "positive":
-            p_pos += 1
-            pos_counts += vec
-        else:
-            p_neg += 1
-            neg_counts += vec
+    p_pos = np.sum(pos_mask) / total_training_docs
+    p_neg = np.sum(neg_mask) / total_training_docs
 
-    p_pos /= len(training_vecs)  # (num pos docs) / (num training docs)
-    p_neg /= len(training_vecs)  # (num neg docs) / (num training docs)
+    pos_counts = np.asarray( training_vecs[pos_mask].sum(axis=0) ).flatten()  
+    neg_counts = np.asarray( training_vecs[neg_mask].sum(axis=0) ).flatten()
 
     # Laplace (Add-1) Smoothing
     pos_probs = (pos_counts + 1) / (
