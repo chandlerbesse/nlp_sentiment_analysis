@@ -5,7 +5,7 @@ import pickle
 import os
 import time
 from collections import Counter
-from scipy.sparse import lil_matrix, csr_matrix
+from scipy.sparse import lil_matrix, csr_matrix, save_npz, load_npz
 
 # nlp = spacy.load("en_core_web_sm")
 nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
@@ -308,8 +308,8 @@ def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, 
 
 path = "bumble_google_play_reviews.csv"
 
-if os.path.exists("bow_vectors.npy") and os.path.exists("precomputed.pkl"):
-    BoW_vectors = np.load("bow_vectors.npy")
+if os.path.exists("BoW_csr_matrix.npz") and os.path.exists("precomputed.pkl"):
+    BoW_csr_matrix = load_npz("BoW_csr_matrix.npz")
     with open("precomputed.pkl", "rb") as f:
         data = pickle.load(f)
         vocab = data["vocab"]
@@ -332,10 +332,10 @@ else:
     print(f"Vocabulary size: {len(all_words)}")
 
     start = time.time()
-    vocab, BoW_vectors = build_vocab_and_vectors(tokens)
+    vocab, BoW_csr_matrix = build_vocab_and_vectors(tokens)
     print(f"Building vocab and non-binary BoW Vectors: {time.time() - start:.2f}s")
 
-    np.save("bow_vectors.npy", BoW_vectors)
+    save_npz("BoW_csr_matrix.npz", BoW_csr_matrix)
     with open("precomputed.pkl", "wb") as f:
         pickle.dump({
             "vocab": vocab,
@@ -346,16 +346,16 @@ else:
     print("Computed and saved data to disk.")
 
 # Splitting the training and testing data
-num_samples = len(BoW_vectors)
+num_samples = BoW_csr_matrix.shape[0]
 train_size = 0.6
 test_size = 0.2
 
 num_train = np.floor(num_samples * train_size).astype(int)
 num_test = np.floor(num_samples * test_size).astype(int)
 
-train_vecs = BoW_vectors[:num_train]
+train_vecs = BoW_csr_matrix[:num_train]
 train_labels = labels[:num_train]
-test_vecs = BoW_vectors[-num_test:]
+test_vecs = BoW_csr_matrix[-num_test:]
 test_labels = labels[-num_test:]
 
 # Normalized training data will be using in KNN classification
