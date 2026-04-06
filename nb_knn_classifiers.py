@@ -265,25 +265,45 @@ def normalize(csr):
     return csr.multiply( 1 / magnitudes )
 
 
-def classify_knn(test_arr, normalized_train, training_labels, k):
-    normalized_test = normalize(test_arr)
+# def classify_knn(test_arr, normalized_train, training_labels, k):
+#     normalized_test = normalize(test_arr)
 
-    all_cosine_similarities = np.dot(normalized_train, normalized_test.T)
+#     all_cosine_similarities = np.dot(normalized_train, normalized_test.T)
 
-    sorted_indices = np.argsort(all_cosine_similarities.T, axis=1)
-    top_k = sorted_indices[:, -k:]
+#     sorted_indices = np.argsort(all_cosine_similarities.T, axis=1)
+#     top_k = sorted_indices[:, -k:]
 
-    preds = []
-    top_k_labels = []
+#     preds = []
+#     top_k_labels = []
 
-    for neighbors in top_k:
-        neighbor_labels = [training_labels[i] for i in neighbors]
-        top_k_labels.append(neighbor_labels)
+#     for neighbors in top_k:
+#         neighbor_labels = [training_labels[i] for i in neighbors]
+#         top_k_labels.append(neighbor_labels)
 
-        pred = "positive" if neighbor_labels.count("positive") > neighbor_labels.count("negative") else "negative"
-        preds.append(pred)
+#         pred = "positive" if neighbor_labels.count("positive") > neighbor_labels.count("negative") else "negative"
+#         preds.append(pred)
 
-    return preds, top_k_labels
+#     return preds, top_k_labels
+
+
+def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, k=3):
+    normalized_test_csr_matrix = normalize(test_csr_matrix)
+
+    binary_labels = np.where(np.array(training_labels) == "positive", 1, 0)
+
+    num_samples = normalized_test_csr_matrix.shape[0]
+
+    knn_preds = []
+
+    for i in range(num_samples):
+        test_sample = normalized_test_csr_matrix[i]
+        cosine_similarities = normalized_train_csr_matrix.dot(test_sample.T)
+        sorted_indices = np.argsort( cosine_similarities.toarray().flatten() )
+        top_k_indices = sorted_indices[-k:]
+        pred = "positive" if np.sum(binary_labels[top_k_indices]) > k // 2 else "negative"
+        knn_preds.append(pred)
+
+    return knn_preds
 
 
 path = "bumble_google_play_reviews.csv"
