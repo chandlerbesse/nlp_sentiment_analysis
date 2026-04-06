@@ -37,13 +37,12 @@ def tokenize(text):
 
 
 def count_tokens(tokens):
-    all_tokens = []
+    token_counts = Counter()
 
     for doc in tokens:
-        all_tokens.extend(doc)
+        token_counts.update(doc)
 
-    total_word_counts = Counter(all_tokens)
-    return total_word_counts
+    return token_counts
 
 
 # def build_vocab_and_vectors(docs):
