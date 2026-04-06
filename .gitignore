@@ -1,0 +1,20 @@
+# Data files
+*.csv
+
+# Precomputed cache files
+*.npy
+*.pkl
+
+# Python
+__pycache__/
+*.pyc
+
+# PyCharm / JetBrains
+.idea/
+
+# VSCode
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
