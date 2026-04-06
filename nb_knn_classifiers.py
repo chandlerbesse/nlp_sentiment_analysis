@@ -5,6 +5,7 @@ import pickle
 import os
 import time
 from collections import Counter
+from scipy.sparse import lil_matrix, csr_matrix
 
 # nlp = spacy.load("en_core_web_sm")
 nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
@@ -65,19 +66,38 @@ def count_tokens(tokens):
 #     return vocab, vectors
 
 
+# def build_vocab_and_vectors(docs, min_freq=5):
+#     total_word_counts = count_tokens(docs)
+#     vocab = sorted([word for word in total_word_counts if total_word_counts[word] >= min_freq])
+
+#     vectors = []
+#     for doc in docs:
+#         counter = Counter(doc)
+#         vector = [counter[token] for token in vocab]
+#         vectors.append(vector)
+
+#     vectors = np.array(vectors)
+
+#     return vocab, vectors
+
+
 def build_vocab_and_vectors(docs, min_freq=5):
     total_word_counts = count_tokens(docs)
     vocab = sorted([word for word in total_word_counts if total_word_counts[word] >= min_freq])
 
-    vectors = []
-    for doc in docs:
-        counter = Counter(doc)
-        vector = [counter[token] for token in vocab]
-        vectors.append(vector)
+    word_to_idx = {word: idx for idx, word in enumerate(vocab)}
 
-    vectors = np.array(vectors)
+    vectors = lil_matrix((len(docs), len(vocab)), dtype=np.int32)
 
-    return vocab, vectors
+    for idx, doc in enumerate(docs):
+        word_counts = Counter(doc)
+        for word, count in word_counts.items():
+            if word in word_to_idx:
+                vectors[idx, word_to_idx[word]] = count
+    
+    sparse_matrix = csr_matrix(vectors)
+
+    return vocab, sparse_matrix
 
 
 def train_naive_bayes(training_vecs, training_labels, vocabulary):
