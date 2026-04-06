@@ -181,26 +181,46 @@ def train_naive_bayes(training_vecs, training_labels, vocabulary):
     return p_pos, p_neg, pos_probs, neg_probs
 
 
-def classify_naive_bayes(bow_vec, p_pos, p_neg, pos_probs, neg_probs):
-    pos_log_score = np.log(p_pos) + np.dot(bow_vec, np.log(pos_probs))
-    neg_log_score = np.log(p_neg) + np.dot(bow_vec, np.log(neg_probs))
+# def classify_naive_bayes(bow_vec, p_pos, p_neg, pos_probs, neg_probs):
+#     pos_log_score = np.log(p_pos) + np.dot(bow_vec, np.log(pos_probs))
+#     neg_log_score = np.log(p_neg) + np.dot(bow_vec, np.log(neg_probs))
 
-    max_score = np.maximum(pos_log_score, neg_log_score)  # needs to be np.maximum NOT np.max
-    pos_log_score -= max_score
-    neg_log_score -= max_score
+#     max_score = np.maximum(pos_log_score, neg_log_score)  # needs to be np.maximum NOT np.max
+#     pos_log_score -= max_score
+#     neg_log_score -= max_score
 
-    exp_pos = np.exp(pos_log_score)
-    exp_neg = np.exp(neg_log_score)
+#     exp_pos = np.exp(pos_log_score)
+#     exp_neg = np.exp(neg_log_score)
 
-    # p_pos_given_doc = np.exp(pos_log_score) / (np.exp(pos_log_score) + np.exp(neg_log_score))
-    # p_neg_given_doc = np.exp(neg_log_score) / (np.exp(pos_log_score) + np.exp(neg_log_score))
+#     # p_pos_given_doc = np.exp(pos_log_score) / (np.exp(pos_log_score) + np.exp(neg_log_score))
+#     # p_neg_given_doc = np.exp(neg_log_score) / (np.exp(pos_log_score) + np.exp(neg_log_score))
 
-    p_pos_given_doc = exp_pos / (exp_pos + exp_neg)
-    p_neg_given_doc = exp_neg / (exp_pos + exp_neg)
+#     p_pos_given_doc = exp_pos / (exp_pos + exp_neg)
+#     p_neg_given_doc = exp_neg / (exp_pos + exp_neg)
 
-    pred = "positive" if p_pos_given_doc > p_neg_given_doc else "negative"
+#     pred = "positive" if p_pos_given_doc > p_neg_given_doc else "negative"
 
-    return p_pos_given_doc, p_neg_given_doc, pred
+#     return p_pos_given_doc, p_neg_given_doc, pred
+
+
+def classify_naive_bayes(test_vectors, p_pos, p_neg, pos_probs, neg_probs):
+    pos_log_scores = np.log(p_pos) + test_vectors.dot( np.log(pos_probs) )
+    neg_log_scores = np.log(p_neg) + test_vectors.dot( np.log(neg_probs) )
+
+    max_scores = np.maximum(pos_log_scores, neg_log_scores)  # needs to be np.maximum NOT np.max
+    pos_log_scores -= max_scores
+    neg_log_scores -= max_scores
+
+    pos_exps = np.exp(pos_log_scores)
+    neg_exps = np.exp(neg_log_scores)
+
+    # Softmax Calculation
+    p_pos_given_doc = pos_exps / (pos_exps + neg_exps)
+    p_neg_given_doc = neg_exps / (pos_exps + neg_exps)
+
+    preds = np.where(p_pos_given_doc >= p_neg_given_doc, 'positive', 'negative')
+
+    return p_pos_given_doc, p_neg_given_doc, preds
 
 
 def evaluate(pred_labels, actual_labels):
