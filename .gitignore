@@ -3,6 +3,7 @@
 
 # Precomputed cache files
 *.npy
+*.npz
 *.pkl
 
 # Python
