@@ -180,7 +180,7 @@ def log_results(algorithm, min_freq, vocab_size, num_train, num_test,
                              "tp", "tn", "fp", "fn",
                              "sensitivity", "specificity", "precision", "nvp", 
                              "acc", "f_score", "runtime"])
-        writer.writerow([algorithm, min_freq, k, vocab_size,
+        writer.writerow([algorithm, min_freq, vocab_size, k,
                          num_train, num_test, 
                          true_pos, true_neg, false_pos, false_neg, 
                          sensitivity, specificity, precision, npv, 
