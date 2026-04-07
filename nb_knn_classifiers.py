@@ -238,6 +238,7 @@ neg_train_count = train_labels.count("negative")
 print(f"Positive Training Samples: {pos_train_count}")
 print(f"Negative Training Samples: {neg_train_count}\n")
 
+
 # ========================================
 # === Part 1: Naive Bayes Calculations ===
 # ========================================
@@ -262,6 +263,7 @@ print(f"Negative Predictive Value: {npv}")
 print("-------------------------")
 print(f"Accuracy: {acc}")
 print(f"F-Score: {f1}\n")
+
 
 # ================================
 # === Part 2: KNN Calculations ===
@@ -289,3 +291,44 @@ for k in [3, 21, 101]:
     print("-------------------------")
     print(f"Accuracy: {acc}")
     print(f"F-Score: {f1}\n")
+
+
+# ======================================
+# === Part 3: Classifying User Input ===
+# ======================================
+
+word_to_idx = {word: idx for idx, word in enumerate(vocab)}
+
+user_text = input("Enter a review: ")
+user_tokens = tokenize(user_text)
+
+lil_mat = lil_matrix((1, len(vocab)), dtype=np.int32)
+
+user_word_counts = Counter(user_tokens)
+for word, count in user_word_counts.items():
+    if word in word_to_idx:
+        lil_mat[0, word_to_idx[word]] = count
+
+# user_BoW_csr = csr_matrix( np.array([user_tokens.count(token) for token in vocab]) )
+user_BoW_csr = csr_matrix(lil_mat)  # Or lil_mat.tocsr()
+
+# === Naive Bayes: ===
+p_pos_given_user, p_neg_given_user, user_NB_pred = classify_naive_bayes(user_BoW_csr, p_pos, p_neg, pos_probs, neg_probs)
+
+print("User Naive Bayes:")
+print("-----------------")
+print(f"Probability of Positive Class: {p_pos_given_user[0]}")
+print(f"Probability of Negative Class: {p_neg_given_user[0]}")
+print(f"NB Predicted Class: {user_NB_pred[0]}")
+print("-----------------\n")
+
+# === KNN: ===
+
+k = 3
+user_knn_pred = classify_knn(user_BoW_csr, norm_train_csr, train_labels, k)
+knn_pred_val = user_knn_pred[0]
+
+print("User KNN:")
+print("-----------------")
+print(f"KNN Predicted Class: {knn_pred_val}")
+print("-----------------\n")
