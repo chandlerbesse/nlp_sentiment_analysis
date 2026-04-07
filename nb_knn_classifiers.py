@@ -308,15 +308,20 @@ def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, 
 
 path = "bumble_google_play_reviews.csv"
 
-if os.path.exists("BoW_csr_matrix.npz") and os.path.exists("precomputed.pkl"):
-    BoW_csr_matrix = load_npz("BoW_csr_matrix.npz")
-    with open("precomputed.pkl", "rb") as f:
+min_freq = 3
+
+tokens_cache_path = "tokens_cache.pkl"
+bow_cache_path = f"bow_min_freq_{min_freq}.npz"
+vocab_cache_path = f"vocab_min_freq_{min_freq}.pkl"
+
+# === Layer 1: Tokens ===
+if os.path.exists(tokens_cache_path):
+    with open(tokens_cache_path, "rb") as f:
         data = pickle.load(f)
-        vocab = data["vocab"]
         reviews = data["reviews"]
         labels = data["labels"]
         tokens = data["tokens"]
-    print("Loaded precomputed data from disk.")
+    print("Loaded tokens from cache.")
 else:
     start = time.time()
     reviews, labels = load_and_clean(path)
@@ -325,29 +330,33 @@ else:
     start = time.time()
     tokens = [tokenize(review) for review in reviews]
     print(f"Tokenization: {time.time() - start:.2f}s")
-    print(f"Number of documents: {len(tokens)}")
-    all_words = set()
-    for doc in tokens:
-        all_words.update(doc)
-    print(f"Vocabulary size: {len(all_words)}")
 
+    with open(tokens_cache_path, "wb") as f:
+        pickle.dump({"reviews": reviews, "labels": labels, "tokens": tokens}, f)
+    print("Saved tokens to cache.")
+
+# === Layer 2: BoW CSR Matrix & Vocabulary ===
+if os.path.exists(bow_cache_path) and os.path.exists(vocab_cache_path):
+    BoW_csr_matrix = load_npz(bow_cache_path)
+    with open(vocab_cache_path, "rb") as f:
+        vocab = pickle.load(f)
+    print(f"Loaded BoW CSR Matrix and Vocabulary (min_freq={min_freq}) from cache.")
+else:
     start = time.time()
-    vocab, BoW_csr_matrix = build_vocab_and_vectors(tokens)
-    print(f"Building vocab and non-binary BoW Vectors: {time.time() - start:.2f}s")
+    vocab, BoW_csr_matrix = build_vocab_and_vectors(tokens, min_freq=min_freq)
+    print(f"Building BoW CSR Matrix and Vocabulary (min_freq={min_freq}): {time.time() - start:.2f}s")
 
-    save_npz("BoW_csr_matrix.npz", BoW_csr_matrix)
-    with open("precomputed.pkl", "wb") as f:
-        pickle.dump({
-            "vocab": vocab,
-            "reviews": reviews,
-            "labels": labels,
-            "tokens": tokens
-        }, f)
-    print("Computed and saved data to disk.")
+    save_npz(bow_cache_path, BoW_csr_matrix)
+    with open(vocab_cache_path, "wb") as f:
+        pickle.dump(vocab, f)
+    print(f"Saved BoW CSR Matrix and Vocabulary (min_freq={min_freq}) to cache.")
+
+print(f"Number of documents: {len(tokens)}")
+print(f"Vocabulary size (min_freq={min_freq}): {len(vocab)}")
 
 # Splitting the training and testing data
 num_samples = BoW_csr_matrix.shape[0]
-train_size = 0.6
+train_size = 0.8
 test_size = 0.2
 
 num_train = np.floor(num_samples * train_size).astype(int)
