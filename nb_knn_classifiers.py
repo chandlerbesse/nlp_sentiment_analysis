@@ -4,8 +4,10 @@ import spacy
 import pickle
 import os
 import time
+import csv
 from collections import Counter
 from scipy.sparse import lil_matrix, csr_matrix, save_npz, load_npz
+from datetime import datetime
 
 # nlp = spacy.load("en_core_web_sm")
 nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
@@ -165,6 +167,26 @@ def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, 
     return knn_preds
 
 
+def log_results(algorithm, min_freq, vocab_size, num_train, num_test,
+                true_pos, true_neg, false_pos, false_neg, 
+                sensitivity, specificity, precision, npv, accuracy, f_score, 
+                k=None, runtime=None):
+    file_exists = os.path.exists("experiment_log.csv")
+    with open("experiment_log.csv", "a", newline="") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(["algorithm", "min_freq", "vocab_size", "k",
+                             "num_train", "num_test", 
+                             "tp", "tn", "fp", "fn",
+                             "sensitivity", "specificity", "precision", "nvp", 
+                             "acc", "f_score", "runtime"])
+        writer.writerow([algorithm, min_freq, k, vocab_size,
+                         num_train, num_test, 
+                         true_pos, true_neg, false_pos, false_neg, 
+                         sensitivity, specificity, precision, npv, 
+                         accuracy, f_score, runtime])
+
+
 path = "bumble_google_play_reviews.csv"
 
 min_freq = 3
@@ -251,15 +273,15 @@ print(f"Naive Bayes training and classification time: {time.time() - start:.2f}s
 tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(NB_preds, test_labels)
 print("Naive Bayes Results:")
 print("-------------------------")
-print(f"True Positive: {tp}")
-print(f"True Negative: {tn}")
-print(f"False Positive: {fp}")
-print(f"False Negative: {fn}")
+print(f" - True Positive: {tp}")
+print(f" - True Negative: {tn}")
+print(f" - False Positive: {fp}")
+print(f" - False Negative: {fn}")
 print("-------------------------")
-print(f"Sensitivity: {sens}")
-print(f"Specificity: {spec}")
-print(f"Precision: {prec}")
-print(f"Negative Predictive Value: {npv}")
+print(f" - Sensitivity: {sens}")
+print(f" - Specificity: {spec}")
+print(f" - Precision: {prec}")
+print(f" - Negative Predictive Value: {npv}")
 print("-------------------------")
 print(f"Accuracy: {acc}")
 print(f"F-Score: {f1}\n")
@@ -277,17 +299,17 @@ for k in [3, 21, 101]:
     print(f"KNN classification time: {time.time() - start:.2f}s")
 
     tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(knn_preds, test_labels)
-    print("KNN Results:")
+    print(f"KNN Results k={k}:")
     print("-------------------------")
-    print(f"True Positive: {tp}")
-    print(f"True Negative: {tn}")
-    print(f"False Positive: {fp}")
-    print(f"False Negative: {fn}")
+    print(f" - True Positive: {tp}")
+    print(f" - True Negative: {tn}")
+    print(f" - False Positive: {fp}")
+    print(f" - False Negative: {fn}")
     print("-------------------------")
-    print(f"Sensitivity: {sens}")
-    print(f"Specificity: {spec}")
-    print(f"Precision: {prec}")
-    print(f"Negative Predictive Value: {npv}")
+    print(f" - Sensitivity: {sens}")
+    print(f" - Specificity: {spec}")
+    print(f" - Precision: {prec}")
+    print(f" - Negative Predictive Value: {npv}")
     print("-------------------------")
     print(f"Accuracy: {acc}")
     print(f"F-Score: {f1}\n")
@@ -317,10 +339,9 @@ p_pos_given_user, p_neg_given_user, user_NB_pred = classify_naive_bayes(user_BoW
 
 print("User Naive Bayes:")
 print("-----------------")
-print(f"Probability of Positive Class: {p_pos_given_user[0]}")
-print(f"Probability of Negative Class: {p_neg_given_user[0]}")
-print(f"NB Predicted Class: {user_NB_pred[0]}")
-print("-----------------\n")
+print(f" - Probability of Positive Class: {p_pos_given_user[0]}")
+print(f" - Probability of Negative Class: {p_neg_given_user[0]}")
+print(f"NB Predicted Class: {user_NB_pred[0]}\n")
 
 # === KNN: ===
 
@@ -330,5 +351,4 @@ knn_pred_val = user_knn_pred[0]
 
 print("User KNN:")
 print("-----------------")
-print(f"KNN Predicted Class: {knn_pred_val}")
-print("-----------------\n")
+print(f"KNN Predicted Class: {knn_pred_val}\n")
