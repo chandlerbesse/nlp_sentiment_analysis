@@ -221,17 +221,20 @@ test_size = 0.2
 num_train = np.floor(num_samples * train_size).astype(int)
 num_test = np.floor(num_samples * test_size).astype(int)
 
-train_vecs = BoW_csr_matrix[:num_train]
+# Samples
+train_csr = BoW_csr_matrix[:num_train]
+test_csr = BoW_csr_matrix[-num_test:]
+
+# Labels
 train_labels = labels[:num_train]
-test_vecs = BoW_csr_matrix[-num_test:]
 test_labels = labels[-num_test:]
 
 # Normalized training data will be using in KNN classification
-norm_train = normalize(train_vecs)
+norm_train_csr = normalize(train_csr)
 
-pos_train = train_labels.count("positive")
-neg_train = train_labels.count("negative")
+pos_train_count = train_labels.count("positive")
+neg_train_count = train_labels.count("negative")
 
-print(f"Positive Training Samples: {pos_train}")
-print(f"Negative Training Samples: {neg_train}\n")
+print(f"Positive Training Samples: {pos_train_count}")
+print(f"Negative Training Samples: {neg_train_count}\n")
 print(f"Vocab length: {len(vocab)}")
