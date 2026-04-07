@@ -140,7 +140,9 @@ def normalize(csr):
     magnitudes = np.sqrt( csr.multiply(csr).sum(axis=1) )
     magnitudes = np.where(magnitudes == 0, 1, magnitudes)
     
-    return csr.multiply( 1 / magnitudes )
+    normalized_csr = csr.multiply( 1 / magnitudes ).tocsr()  # csr.multiply( 1 / magnitutdes ) returns a COO matrix, so it must be converted back to CSR for slicing operations in KNN classification
+
+    return normalized_csr
 
 
 def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, k=3):
