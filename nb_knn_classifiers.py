@@ -46,41 +46,6 @@ def count_tokens(tokens):
     return token_counts
 
 
-# def build_vocab_and_vectors(docs):
-#     vocab = set()
-#     vectors = []
-#
-#     # Iterating over each document in docs to create a vocabulary of unique words
-#     for doc in docs:
-#         vocab.update(doc)
-#     vocab = sorted(vocab)
-#
-#     for doc in docs:
-#         counter = Counter(doc)  # Creates a dictionary containing the total count of each token in vocab
-#         vector = [counter[token] for token in
-#                   vocab]  # Creates a non-binary BoW vector for the document using the counter dictionary
-#         vectors.append(vector)
-#
-#     vectors = np.array(vectors)
-#
-#     return vocab, vectors
-
-
-# def build_vocab_and_vectors(docs, min_freq=5):
-#     total_word_counts = count_tokens(docs)
-#     vocab = sorted([word for word in total_word_counts if total_word_counts[word] >= min_freq])
-
-#     vectors = []
-#     for doc in docs:
-#         counter = Counter(doc)
-#         vector = [counter[token] for token in vocab]
-#         vectors.append(vector)
-
-#     vectors = np.array(vectors)
-
-#     return vocab, vectors
-
-
 def build_vocab_and_vectors(docs, min_freq=5):
     total_word_counts = count_tokens(docs)
     vocab = sorted([word for word in total_word_counts if total_word_counts[word] >= min_freq])
@@ -98,62 +63,6 @@ def build_vocab_and_vectors(docs, min_freq=5):
     sparse_matrix = csr_matrix(vectors)
 
     return vocab, sparse_matrix
-
-
-# def train_naive_bayes(training_vecs, training_labels, vocabulary):
-#     v = len(vocabulary)
-#     p_pos = 0
-#     p_neg = 0
-
-#     pos_counts = np.zeros(v)
-#     neg_counts = np.zeros(v)
-
-#     for vec, label in zip(training_vecs, training_labels):
-#         if label == "positive":
-#             p_pos += 1
-#             pos_counts += vec
-#         else:
-#             p_neg += 1
-#             neg_counts += vec
-
-#     p_pos /= len(training_vecs)  # (num pos docs) / (num training docs)
-#     p_neg /= len(training_vecs)  # (num neg docs) / (num training docs)
-
-#     # Laplace (Add-1) Smoothing
-#     pos_probs = (pos_counts + 1) / (
-#             pos_counts.sum() + v)  # pos_counts.sum() is the total number of words in the pos documents
-#     neg_probs = (neg_counts + 1) / (
-#             neg_counts.sum() + v)  # neg_counts.sum() is the total number of words in the neg documents
-
-#     return p_pos, p_neg, pos_probs, neg_probs
-
-
-# def train_naive_bayes(training_vecs, training_labels, vocabulary):
-#     v = len(vocabulary)
-#     p_pos = 0
-#     p_neg = 0
-
-#     pos_counts = np.zeros(v)
-#     neg_counts = np.zeros(v)
-
-#     for vec, label in zip(training_vecs, training_labels):
-#         if label == "positive":
-#             p_pos += 1
-#             pos_counts += vec.toarray().flatten()
-#         else:
-#             p_neg += 1
-#             neg_counts += vec.toarray().flatten()
-
-#     p_pos /= training_vecs.shape[0]  # (num pos docs) / (num training docs)
-#     p_neg /= training_vecs.shape[0]  # (num neg docs) / (num training docs)
-
-#     # Laplace (Add-1) Smoothing
-#     pos_probs = (pos_counts + 1) / (
-#             pos_counts.sum() + v)  # pos_counts.sum() is the total number of words in the pos documents
-#     neg_probs = (neg_counts + 1) / (
-#             neg_counts.sum() + v)  # neg_counts.sum() is the total number of words in the neg documents
-
-#     return p_pos, p_neg, pos_probs, neg_probs
 
 
 def train_naive_bayes(training_vecs, training_labels, vocabulary):
@@ -179,28 +88,6 @@ def train_naive_bayes(training_vecs, training_labels, vocabulary):
             neg_counts.sum() + v)  # neg_counts.sum() is the total number of words in the neg documents
 
     return p_pos, p_neg, pos_probs, neg_probs
-
-
-# def classify_naive_bayes(bow_vec, p_pos, p_neg, pos_probs, neg_probs):
-#     pos_log_score = np.log(p_pos) + np.dot(bow_vec, np.log(pos_probs))
-#     neg_log_score = np.log(p_neg) + np.dot(bow_vec, np.log(neg_probs))
-
-#     max_score = np.maximum(pos_log_score, neg_log_score)  # needs to be np.maximum NOT np.max
-#     pos_log_score -= max_score
-#     neg_log_score -= max_score
-
-#     exp_pos = np.exp(pos_log_score)
-#     exp_neg = np.exp(neg_log_score)
-
-#     # p_pos_given_doc = np.exp(pos_log_score) / (np.exp(pos_log_score) + np.exp(neg_log_score))
-#     # p_neg_given_doc = np.exp(neg_log_score) / (np.exp(pos_log_score) + np.exp(neg_log_score))
-
-#     p_pos_given_doc = exp_pos / (exp_pos + exp_neg)
-#     p_neg_given_doc = exp_neg / (exp_pos + exp_neg)
-
-#     pred = "positive" if p_pos_given_doc > p_neg_given_doc else "negative"
-
-#     return p_pos_given_doc, p_neg_given_doc, pred
 
 
 def classify_naive_bayes(test_vectors, p_pos, p_neg, pos_probs, neg_probs):
@@ -249,41 +136,11 @@ def evaluate(pred_labels, actual_labels):
     return true_pos, true_neg, false_pos, false_neg, sensitivity, specificity, precision, neg_pred_value, accuracy, f_score
 
 
-# def normalize(arr):
-#     if arr.ndim == 1:
-#         arr = arr.reshape(1, -1)
-
-#     magnitudes = np.linalg.norm(arr, axis=1, keepdims=True)
-#     magnitudes = np.where(magnitudes == 0, 1, magnitudes)
-#     return arr / magnitudes
-
-
 def normalize(csr):
     magnitudes = np.sqrt( csr.multiply(csr).sum(axis=1) )
     magnitudes = np.where(magnitudes == 0, 1, magnitudes)
     
     return csr.multiply( 1 / magnitudes )
-
-
-# def classify_knn(test_arr, normalized_train, training_labels, k):
-#     normalized_test = normalize(test_arr)
-
-#     all_cosine_similarities = np.dot(normalized_train, normalized_test.T)
-
-#     sorted_indices = np.argsort(all_cosine_similarities.T, axis=1)
-#     top_k = sorted_indices[:, -k:]
-
-#     preds = []
-#     top_k_labels = []
-
-#     for neighbors in top_k:
-#         neighbor_labels = [training_labels[i] for i in neighbors]
-#         top_k_labels.append(neighbor_labels)
-
-#         pred = "positive" if neighbor_labels.count("positive") > neighbor_labels.count("negative") else "negative"
-#         preds.append(pred)
-
-#     return preds, top_k_labels
 
 
 def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, k=3):
