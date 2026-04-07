@@ -237,4 +237,55 @@ neg_train_count = train_labels.count("negative")
 
 print(f"Positive Training Samples: {pos_train_count}")
 print(f"Negative Training Samples: {neg_train_count}\n")
-print(f"Vocab length: {len(vocab)}")
+
+# ========================================
+# === Part 1: Naive Bayes Calculations ===
+# ========================================
+
+start = time.time()
+p_pos, p_neg, pos_probs, neg_probs = train_naive_bayes(train_csr, train_labels, vocab)
+p_pos_given_doc, p_neg_given_doc, NB_preds = classify_naive_bayes(test_csr, p_pos, p_neg, pos_probs, neg_probs)
+print(f"Naive Bayes training and classification time: {time.time() - start:.2f}s")
+
+tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(NB_preds, test_labels)
+print("Naive Bayes Results:")
+print("-------------------------")
+print(f"True Positive: {tp}")
+print(f"True Negative: {tn}")
+print(f"False Positive: {fp}")
+print(f"False Negative: {fn}")
+print("-------------------------")
+print(f"Sensitivity: {sens}")
+print(f"Specificity: {spec}")
+print(f"Precision: {prec}")
+print(f"Negative Predictive Value: {npv}")
+print("-------------------------")
+print(f"Accuracy: {acc}")
+print(f"F-Score: {f1}\n")
+
+# ================================
+# === Part 2: KNN Calculations ===
+# ================================
+
+# k = 3
+
+for k in [3, 21, 101]:
+    start = time.time()
+    knn_preds = classify_knn(test_csr, norm_train_csr, train_labels, k)
+    print(f"KNN classification time: {time.time() - start:.2f}s")
+
+    tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(knn_preds, test_labels)
+    print("KNN Results:")
+    print("-------------------------")
+    print(f"True Positive: {tp}")
+    print(f"True Negative: {tn}")
+    print(f"False Positive: {fp}")
+    print(f"False Negative: {fn}")
+    print("-------------------------")
+    print(f"Sensitivity: {sens}")
+    print(f"Specificity: {spec}")
+    print(f"Precision: {prec}")
+    print(f"Negative Predictive Value: {npv}")
+    print("-------------------------")
+    print(f"Accuracy: {acc}")
+    print(f"F-Score: {f1}\n")
