@@ -48,23 +48,66 @@ def count_tokens(tokens):
     return token_counts
 
 
-def build_vocab_and_vectors(docs, min_freq=5):
-    total_word_counts = count_tokens(docs)
-    vocab = sorted([word for word in total_word_counts if total_word_counts[word] >= min_freq])
+# def build_vocab_and_vectors(docs, min_freq=5):
+#     total_word_counts = count_tokens(docs)
+#     vocab = sorted([word for word in total_word_counts if total_word_counts[word] >= min_freq])
 
-    word_to_idx = {word: idx for idx, word in enumerate(vocab)}
+#     word_to_idx = {word: idx for idx, word in enumerate(vocab)}
 
-    vectors = lil_matrix((len(docs), len(vocab)), dtype=np.int32)
+#     vectors = lil_matrix((len(docs), len(vocab)), dtype=np.int32)
 
-    for idx, doc in enumerate(docs):
-        word_counts = Counter(doc)
-        for word, count in word_counts.items():
-            if word in word_to_idx:
-                vectors[idx, word_to_idx[word]] = count
+#     for idx, doc in enumerate(docs):
+#         word_counts = Counter(doc)
+#         for word, count in word_counts.items():
+#             if word in word_to_idx:
+#                 vectors[idx, word_to_idx[word]] = count
     
-    sparse_matrix = csr_matrix(vectors)
+#     sparse_matrix = csr_matrix(vectors)
 
-    return vocab, sparse_matrix
+#     return vocab, sparse_matrix
+
+
+def build_vocab(training_docs, training_labels, min_freq=5, max_ratio=1.2):
+    # Separte training samples by label
+    pos_reviews = [review for review, label in zip(training_docs, training_labels) if label == "positive"]
+    neg_reviews = [review for review, label in zip(training_docs, training_labels) if label == "negative"]
+
+    num_pos_docs = len(pos_reviews)
+    num_neg_docs = len(neg_reviews)
+
+    # Count frequencies
+    pos_token_counts = count_tokens(pos_reviews)        # dictionary containing total counts of all pos tokens
+    neg_token_counts = count_tokens(neg_reviews)        # dictionary containing total counts of all neg tokens
+    total_token_counts = count_tokens(training_docs)    # dictionary containing total counts of every token across all training docs
+
+    valid_tokens = []
+    sum_pos_tokens = sum(pos_token_counts.values())
+    sum_neg_tokens = sum(neg_token_counts.values())
+
+    # We only want to keep tokens that are discriminative 
+    for token, total_freq in total_token_counts.items():
+        if total_freq >= min_freq:  # Filters out low frequency words (mostly typos and rare words)
+
+            # Frequency of token in pos/neg documents
+            # Safely returns 0 if "token" doesn't appear in pos_review or neg_reviews because of Counter()
+            pos_freq = pos_token_counts[token]
+            neg_freq = neg_token_counts[token]
+
+            # Probability of token in given class
+            p_token_given_pos = pos_freq / sum_pos_tokens 
+            p_token_given_neg = neg_freq / sum_neg_tokens
+
+            # Calculate ratio: a ratio from 1 to max_ratio is non-discriminative and will NOT be added to the vocabulary
+            max_prob = max(p_token_given_pos, p_token_given_neg)
+            min_prob = min(p_token_given_pos, p_token_given_neg) + 1e-9  # prevents division by 0
+            ratio = max_prob / min_prob
+
+            if ratio >= max_ratio:
+                valid_tokens.append(token)
+
+    vocabulary = sorted(valid_tokens)
+
+    return vocabulary
 
 
 def train_naive_bayes(training_vecs, training_labels, vocabulary):
