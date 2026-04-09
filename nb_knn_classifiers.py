@@ -207,22 +207,43 @@ def normalize(csr):
     return normalized_csr
 
 
-def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, k=3):
+# def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, k=3):
+#     normalized_test_csr_matrix = normalize(test_csr_matrix)
+
+#     binary_labels = np.where(np.array(training_labels) == "positive", 1, 0)
+
+#     num_samples = normalized_test_csr_matrix.shape[0]
+
+#     knn_preds = []
+
+#     for i in range(num_samples):
+#         test_sample = normalized_test_csr_matrix[i]
+#         cosine_similarities = normalized_train_csr_matrix.dot(test_sample.T)
+#         sorted_indices = np.argsort( cosine_similarities.toarray().flatten() )
+#         top_k_indices = sorted_indices[-k:]
+#         pred = "positive" if np.sum(binary_labels[top_k_indices]) > k // 2 else "negative"
+#         knn_preds.append(pred)
+
+#     return knn_preds
+
+
+def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, k=3, batch_size=1000):
     normalized_test_csr_matrix = normalize(test_csr_matrix)
-
     binary_labels = np.where(np.array(training_labels) == "positive", 1, 0)
-
-    num_samples = normalized_test_csr_matrix.shape[0]
 
     knn_preds = []
 
-    for i in range(num_samples):
-        test_sample = normalized_test_csr_matrix[i]
-        cosine_similarities = normalized_train_csr_matrix.dot(test_sample.T)
-        sorted_indices = np.argsort( cosine_similarities.toarray().flatten() )
-        top_k_indices = sorted_indices[-k:]
-        pred = "positive" if np.sum(binary_labels[top_k_indices]) > k // 2 else "negative"
-        knn_preds.append(pred)
+    for batch in range(0, normalized_test_csr_matrix.shape[0], batch_size):
+        test_batch = normalized_test_csr_matrix[batch:batch+batch_size]
+
+        cosine_similarities = test_batch.dot(normalized_train_csr_matrix.T)  # We want each ROW to represent a test sample
+        sorted_indices = np.argsort(cosine_similarities.toarray(), axis=1)
+        top_k_indices = sorted_indices[:, -k:]
+
+
+        for neighbors in top_k_indices:
+            pred = "positive" if np.sum(binary_labels[neighbors]) > k // 2 else "negative"
+            knn_preds.append(pred)
 
     return knn_preds
 
