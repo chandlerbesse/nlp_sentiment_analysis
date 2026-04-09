@@ -209,20 +209,21 @@ def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, 
     return knn_preds
 
 
-def log_results(algorithm, min_freq, vocab_size, num_train, num_test,
+def log_results(algorithm, min_freq, max_ratio, vocab_size, num_train, num_test,
                 true_pos, true_neg, false_pos, false_neg, 
                 sensitivity, specificity, precision, npv, accuracy, f_score, 
                 k=None, runtime=None):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     file_exists = os.path.exists("experiment_log.csv")
     with open("experiment_log.csv", "a", newline="") as f:
         writer = csv.writer(f)
         if not file_exists:
-            writer.writerow(["algorithm", "min_freq", "vocab_size", "k",
+            writer.writerow(["timestamp", "algorithm", "min_freq", "max_ratio", "vocab_size", "k",
                              "num_train", "num_test", 
                              "tp", "tn", "fp", "fn",
                              "sensitivity", "specificity", "precision", "nvp", 
                              "acc", "f_score", "runtime"])
-        writer.writerow([algorithm, min_freq, vocab_size, k,
+        writer.writerow([timestamp, algorithm, min_freq, max_ratio, vocab_size, k,
                          num_train, num_test, 
                          true_pos, true_neg, false_pos, false_neg, 
                          sensitivity, specificity, precision, npv, 
@@ -311,25 +312,25 @@ for i, min_freq in enumerate(MIN_FREQ_VALUES, 1):
     tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(NB_preds, test_labels)
     print(f"Naive Bayes Results (min_freq={min_freq}):")
     print(f"Classification time: {nb_runtime:.2f}s")
-    # print("-------------------------")
-    # print(f" - True Positive: {tp}")
-    # print(f" - True Negative: {tn}")
-    # print(f" - False Positive: {fp}")
-    # print(f" - False Negative: {fn}")
-    # print("-------------------------")
-    # print(f" - Sensitivity: {sens}")
-    # print(f" - Specificity: {spec}")
-    # print(f" - Precision: {prec}")
-    # print(f" - Negative Predictive Value: {npv}")
+    print("-------------------------")
+    print(f" - True Positive: {tp}")
+    print(f" - True Negative: {tn}")
+    print(f" - False Positive: {fp}")
+    print(f" - False Negative: {fn}")
+    print("-------------------------")
+    print(f" - Sensitivity: {sens}")
+    print(f" - Specificity: {spec}")
+    print(f" - Precision: {prec}")
+    print(f" - Negative Predictive Value: {npv}")
     print("-------------------------")
     print(f"Accuracy: {acc}")
     print(f"F-Score: {f1}\n")
 
-    log_results("naive_bayes", min_freq=min_freq, vocab_size=len(vocab), 
+    log_results("naive_bayes", min_freq=min_freq, max_ratio=MAX_RATIO, vocab_size=len(vocab), 
                 num_train=num_train, num_test=num_test, 
                 true_pos=tp, true_neg=tn, false_pos=fp, false_neg=fn,
                 sensitivity=sens, specificity=spec, precision=prec, npv=npv,
-                accuracy=acc, f_score=f1, runtime=nb_runtime)
+                accuracy=acc, f_score=f1, runtime=f"{nb_runtime:.2f}s")
     
     p_pos_given_doc, p_neg_given_doc, user_NB_pred = classify_naive_bayes(user_csr, p_pos, p_neg, pos_probs, neg_probs)
     print(f"User Naive Bayes (min_freq={min_freq}):")
@@ -364,11 +365,11 @@ for i, min_freq in enumerate(MIN_FREQ_VALUES, 1):
         print(f"Accuracy: {acc}")
         print(f"F-Score: {f1}\n")
 
-        log_results("knn", min_freq=min_freq, vocab_size=len(vocab), k=k, 
+        log_results("knn", min_freq=min_freq, max_ratio=MAX_RATIO, vocab_size=len(vocab), k=k, 
                 num_train=num_train, num_test=num_test, 
                 true_pos=tp, true_neg=tn, false_pos=fp, false_neg=fn,
                 sensitivity=sens, specificity=spec, precision=prec, npv=npv,
-                accuracy=acc, f_score=f1, runtime=knn_runtime)
+                accuracy=acc, f_score=f1, runtime=f"{knn_runtime:.2f}s")
         
         user_knn_pred = classify_knn(user_csr, norm_train_csr, train_labels, k, batch_size=1000)
         print(f"User KNN (k={k}):")
