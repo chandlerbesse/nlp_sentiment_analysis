@@ -48,25 +48,6 @@ def count_tokens(tokens):
     return token_counts
 
 
-# def build_vocab_and_vectors(docs, min_freq=5):
-#     total_word_counts = count_tokens(docs)
-#     vocab = sorted([word for word in total_word_counts if total_word_counts[word] >= min_freq])
-
-#     word_to_idx = {word: idx for idx, word in enumerate(vocab)}
-
-#     vectors = lil_matrix((len(docs), len(vocab)), dtype=np.int32)
-
-#     for idx, doc in enumerate(docs):
-#         word_counts = Counter(doc)
-#         for word, count in word_counts.items():
-#             if word in word_to_idx:
-#                 vectors[idx, word_to_idx[word]] = count
-    
-#     sparse_matrix = csr_matrix(vectors)
-
-#     return vocab, sparse_matrix
-
-
 def build_vocab(training_docs, training_labels, min_freq=5, max_ratio=1.2):
     # Separte training samples by label
     pos_reviews = [review for review, label in zip(training_docs, training_labels) if label == "positive"]
@@ -207,26 +188,6 @@ def normalize(csr):
     return normalized_csr
 
 
-# def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, k=3):
-#     normalized_test_csr_matrix = normalize(test_csr_matrix)
-
-#     binary_labels = np.where(np.array(training_labels) == "positive", 1, 0)
-
-#     num_samples = normalized_test_csr_matrix.shape[0]
-
-#     knn_preds = []
-
-#     for i in range(num_samples):
-#         test_sample = normalized_test_csr_matrix[i]
-#         cosine_similarities = normalized_train_csr_matrix.dot(test_sample.T)
-#         sorted_indices = np.argsort( cosine_similarities.toarray().flatten() )
-#         top_k_indices = sorted_indices[-k:]
-#         pred = "positive" if np.sum(binary_labels[top_k_indices]) > k // 2 else "negative"
-#         knn_preds.append(pred)
-
-#     return knn_preds
-
-
 def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, k=3, batch_size=1000):
     normalized_test_csr_matrix = normalize(test_csr_matrix)
     binary_labels = np.where(np.array(training_labels) == "positive", 1, 0)
@@ -268,15 +229,18 @@ def log_results(algorithm, min_freq, vocab_size, num_train, num_test,
                          accuracy, f_score, runtime])
 
 
+# Hyperparameters:
+MAX_RATIO = 1.2
+MIN_FREQ_VALUES = [1, 10]
+K_VALUES = [3, 11]
+BATCH_SIZE = 1000
+
 path = "bumble_google_play_reviews.csv"
+tokens_cache_path = "tokens_cache.pkl"
 
 user_text = input("Enter a review: ")
 
-tokens_cache_path = "tokens_cache.pkl"
-# bow_cache_path = f"bow_min_freq_{min_freq}.npz"
-# vocab_cache_path = f"vocab_min_freq_{min_freq}.pkl"
-
-# === Layer 1: Tokens ===
+# === Caching tokens to reduce runtime on subsequent runs ===
 if os.path.exists(tokens_cache_path):
     with open(tokens_cache_path, "rb") as f:
         data = pickle.load(f)
@@ -297,22 +261,6 @@ else:
         pickle.dump({"reviews": reviews, "labels": labels, "tokens": tokens}, f)
     print("Saved tokens to cache.")
 
-# # === Layer 2: BoW CSR Matrix & Vocabulary ===
-# if os.path.exists(bow_cache_path) and os.path.exists(vocab_cache_path):
-#     BoW_csr_matrix = load_npz(bow_cache_path)
-#     with open(vocab_cache_path, "rb") as f:
-#         vocab = pickle.load(f)
-#     print(f"Loaded BoW CSR Matrix and Vocabulary (min_freq={min_freq}) from cache.")
-# else:
-#     start = time.time()
-#     vocab, BoW_csr_matrix = build_vocab_and_vectors(tokens, min_freq=min_freq)
-#     print(f"Building BoW CSR Matrix and Vocabulary (min_freq={min_freq}): {time.time() - start:.2f}s")
-
-#     save_npz(bow_cache_path, BoW_csr_matrix)
-#     with open(vocab_cache_path, "wb") as f:
-#         pickle.dump(vocab, f)
-#     print(f"Saved BoW CSR Matrix and Vocabulary (min_freq={min_freq}) to cache.")
-
 print(f"Number of documents: {len(tokens)}")
 
 # Splitting the training and testing data
@@ -330,21 +278,15 @@ test_tokens = tokens[-num_test:]
 train_labels = labels[:num_train]
 test_labels = labels[-num_test:]
 
-# pos_train_count = train_labels.count("positive")
-# neg_train_count = train_labels.count("negative")
-
-# print(f"Positive Training Samples: {pos_train_count}")
-# print(f"Negative Training Samples: {neg_train_count}\n")
-
 user_tokens = tokenize(user_text)
 
-for i, min_freq in enumerate([2, 10], 1):  # Only using 2 values to test if pipeline works
+for i, min_freq in enumerate(MIN_FREQ_VALUES, 1):
     print(f"=====================")
     print(f"=== EXPERIMENT {i} ===")
     print(f"=====================\n")
 
     start = time.time()
-    vocab = build_vocab(train_tokens, train_labels, min_freq=min_freq)
+    vocab = build_vocab(train_tokens, train_labels, min_freq=min_freq, max_ratio=MAX_RATIO)
     train_csr = vectorize_docs(train_tokens, vocab)
     test_csr = vectorize_docs(test_tokens, vocab)
 
@@ -369,16 +311,16 @@ for i, min_freq in enumerate([2, 10], 1):  # Only using 2 values to test if pipe
     tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(NB_preds, test_labels)
     print(f"Naive Bayes Results (min_freq={min_freq}):")
     print(f"Classification time: {nb_runtime:.2f}s")
-    print("-------------------------")
-    print(f" - True Positive: {tp}")
-    print(f" - True Negative: {tn}")
-    print(f" - False Positive: {fp}")
-    print(f" - False Negative: {fn}")
-    print("-------------------------")
-    print(f" - Sensitivity: {sens}")
-    print(f" - Specificity: {spec}")
-    print(f" - Precision: {prec}")
-    print(f" - Negative Predictive Value: {npv}")
+    # print("-------------------------")
+    # print(f" - True Positive: {tp}")
+    # print(f" - True Negative: {tn}")
+    # print(f" - False Positive: {fp}")
+    # print(f" - False Negative: {fn}")
+    # print("-------------------------")
+    # print(f" - Sensitivity: {sens}")
+    # print(f" - Specificity: {spec}")
+    # print(f" - Precision: {prec}")
+    # print(f" - Negative Predictive Value: {npv}")
     print("-------------------------")
     print(f"Accuracy: {acc}")
     print(f"F-Score: {f1}\n")
@@ -395,14 +337,14 @@ for i, min_freq in enumerate([2, 10], 1):  # Only using 2 values to test if pipe
     print(f" - Probability of Negative Class: {p_neg_given_doc[0]}")
     print(f" - User Predicted Class: {user_NB_pred[0]}\n")
 
-    for k in [3, 5]:  # Only using 2 values to test if pipeline works
+    for k in K_VALUES:
         
         # ================================
         # === Part 2: KNN Calculations ===
         # ================================
 
         start = time.time()
-        knn_preds = classify_knn(test_csr, norm_train_csr, train_labels, k, batch_size=500)
+        knn_preds = classify_knn(test_csr, norm_train_csr, train_labels, k, batch_size=BATCH_SIZE)
         knn_runtime = time.time() - start
 
         tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(knn_preds, test_labels)
@@ -428,98 +370,7 @@ for i, min_freq in enumerate([2, 10], 1):  # Only using 2 values to test if pipe
                 sensitivity=sens, specificity=spec, precision=prec, npv=npv,
                 accuracy=acc, f_score=f1, runtime=knn_runtime)
         
-        user_knn_pred = classify_knn(user_csr, norm_train_csr, train_labels, k, batch_size=500)
+        user_knn_pred = classify_knn(user_csr, norm_train_csr, train_labels, k, batch_size=1000)
         print(f"User KNN (k={k}):")
         print(f" - User Predicted Class: {user_knn_pred[0]}\n")
 
-# # ========================================
-# # === Part 1: Naive Bayes Calculations ===
-# # ========================================
-
-# start = time.time()
-# p_pos, p_neg, pos_probs, neg_probs = train_naive_bayes(train_csr, train_labels, vocab)
-# p_pos_given_doc, p_neg_given_doc, NB_preds = classify_naive_bayes(test_csr, p_pos, p_neg, pos_probs, neg_probs)
-# print(f"Naive Bayes training and classification time: {time.time() - start:.2f}s")
-
-# tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(NB_preds, test_labels)
-# print("Naive Bayes Results:")
-# print("-------------------------")
-# print(f" - True Positive: {tp}")
-# print(f" - True Negative: {tn}")
-# print(f" - False Positive: {fp}")
-# print(f" - False Negative: {fn}")
-# print("-------------------------")
-# print(f" - Sensitivity: {sens}")
-# print(f" - Specificity: {spec}")
-# print(f" - Precision: {prec}")
-# print(f" - Negative Predictive Value: {npv}")
-# print("-------------------------")
-# print(f"Accuracy: {acc}")
-# print(f"F-Score: {f1}\n")
-
-
-# # ================================
-# # === Part 2: KNN Calculations ===
-# # ================================
-
-# # k = 3
-
-# for k in [3, 21, 101]:
-#     start = time.time()
-#     knn_preds = classify_knn(test_csr, norm_train_csr, train_labels, k)
-#     print(f"KNN classification time: {time.time() - start:.2f}s")
-
-#     tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(knn_preds, test_labels)
-#     print(f"KNN Results k={k}:")
-#     print("-------------------------")
-#     print(f" - True Positive: {tp}")
-#     print(f" - True Negative: {tn}")
-#     print(f" - False Positive: {fp}")
-#     print(f" - False Negative: {fn}")
-#     print("-------------------------")
-#     print(f" - Sensitivity: {sens}")
-#     print(f" - Specificity: {spec}")
-#     print(f" - Precision: {prec}")
-#     print(f" - Negative Predictive Value: {npv}")
-#     print("-------------------------")
-#     print(f"Accuracy: {acc}")
-#     print(f"F-Score: {f1}\n")
-
-
-# # ======================================
-# # === Part 3: Classifying User Input ===
-# # ======================================
-
-# word_to_idx = {word: idx for idx, word in enumerate(vocab)}
-
-# user_text = input("Enter a review: ")
-# user_tokens = tokenize(user_text)
-
-# lil_mat = lil_matrix((1, len(vocab)), dtype=np.int32)
-
-# user_word_counts = Counter(user_tokens)
-# for word, count in user_word_counts.items():
-#     if word in word_to_idx:
-#         lil_mat[0, word_to_idx[word]] = count
-
-# # user_BoW_csr = csr_matrix( np.array([user_tokens.count(token) for token in vocab]) )
-# user_BoW_csr = csr_matrix(lil_mat)  # Or lil_mat.tocsr()
-
-# # === Naive Bayes: ===
-# p_pos_given_user, p_neg_given_user, user_NB_pred = classify_naive_bayes(user_BoW_csr, p_pos, p_neg, pos_probs, neg_probs)
-
-# print("User Naive Bayes:")
-# print("-----------------")
-# print(f" - Probability of Positive Class: {p_pos_given_user[0]}")
-# print(f" - Probability of Negative Class: {p_neg_given_user[0]}")
-# print(f"NB Predicted Class: {user_NB_pred[0]}\n")
-
-# # === KNN: ===
-
-# k = 3
-# user_knn_pred = classify_knn(user_BoW_csr, norm_train_csr, train_labels, k)
-# knn_pred_val = user_knn_pred[0]
-
-# print("User KNN:")
-# print("-----------------")
-# print(f"KNN Predicted Class: {knn_pred_val}\n")
