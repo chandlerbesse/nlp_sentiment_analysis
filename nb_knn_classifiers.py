@@ -110,6 +110,23 @@ def build_vocab(training_docs, training_labels, min_freq=5, max_ratio=1.2):
     return vocabulary
 
 
+def vectorize_docs(docs, vocabulary):
+    word_to_idx = {word: idx for idx, word in enumerate(vocabulary)}
+
+    # Initialize an empty lil_matrix we can modify using word_to_idx
+    vectors = lil_matrix((len(docs), len(vocabulary)), dtype=np.int32)
+
+    for idx, doc in enumerate(docs):
+        word_counts = Counter(doc)
+        for word, count in word_counts.items():
+            if word in word_to_idx:
+                vectors[idx, word_to_idx[word]] = count
+
+    sparse_matrix = csr_matrix(vectors)
+
+    return sparse_matrix
+
+
 def train_naive_bayes(training_vecs, training_labels, vocabulary):
     training_labels = np.array(training_labels)
     
