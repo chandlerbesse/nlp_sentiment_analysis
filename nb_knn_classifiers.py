@@ -237,9 +237,9 @@ def classify_knn(test_csr_matrix, normalized_train_csr_matrix, training_labels, 
         test_batch = normalized_test_csr_matrix[batch:batch+batch_size]
 
         cosine_similarities = test_batch.dot(normalized_train_csr_matrix.T)  # We want each ROW to represent a test sample
-        sorted_indices = np.argsort(cosine_similarities.toarray(), axis=1)
-        top_k_indices = sorted_indices[:, -k:]
-
+        # sorted_indices = np.argsort(cosine_similarities.toarray(), axis=1)
+        # top_k_indices = sorted_indices[:, -k:]
+        top_k_indices = np.argpartition(cosine_similarities.toarray(), -k, axis=1)[:, -k:]
 
         for neighbors in top_k_indices:
             pred = "positive" if np.sum(binary_labels[neighbors]) > k // 2 else "negative"
