@@ -5,6 +5,7 @@ import pickle
 import os
 import time
 import csv
+import emoji
 from collections import Counter
 from scipy.sparse import lil_matrix, csr_matrix, save_npz, load_npz
 from datetime import datetime
@@ -36,6 +37,19 @@ def load_and_clean(path):
 def tokenize(text):
     doc = nlp(text)
     lemmas = [token.lemma_.lower() for token in doc if token.is_alpha and not token.is_stop]
+    return lemmas
+
+def tokenize_with_emojis(text):
+    text = emoji.demojize(text, delimiters=(" emoji_", " "))
+    doc = nlp(text)
+    lemmas = []
+    for token in doc:
+        if token.is_stop or token.is_punct or token.is_space:
+            continue
+        lemma = token.lemma_.lower()
+        if lemma.isalpha() or lemma.startswith("emoji_"):
+            lemmas.append(lemma)
+
     return lemmas
 
 
@@ -231,19 +245,20 @@ def log_results(algorithm, min_freq, max_ratio, vocab_size, num_train, num_test,
 
 
 # Hyperparameters:
-MAX_RATIO = 1.2
-MIN_FREQ_VALUES = [1, 10]
-K_VALUES = [3, 11]
+MAX_RATIO = 1.0
+MIN_FREQ_VALUES = [1, 10, 100]
+K_VALUES = [3, 11, 51]
 BATCH_SIZE = 1000
 
 path = "bumble_google_play_reviews.csv"
 tokens_cache_path = "tokens_cache.pkl"
+emoji_tokens_cache_path = "emoji_tokens_cache.pkl"
 
 user_text = input("Enter a review: ")
 
 # === Caching tokens to reduce runtime on subsequent runs ===
-if os.path.exists(tokens_cache_path):
-    with open(tokens_cache_path, "rb") as f:
+if os.path.exists(emoji_tokens_cache_path):
+    with open(emoji_tokens_cache_path, "rb") as f:
         data = pickle.load(f)
         reviews = data["reviews"]
         labels = data["labels"]
@@ -255,10 +270,10 @@ else:
     print(f"Cleaning: {time.time() - start:.2f}s")
 
     start = time.time()
-    tokens = [tokenize(review) for review in reviews]
+    tokens = [tokenize_with_emojis(review) for review in reviews]
     print(f"Tokenization: {time.time() - start:.2f}s")
 
-    with open(tokens_cache_path, "wb") as f:
+    with open(emoji_tokens_cache_path, "wb") as f:
         pickle.dump({"reviews": reviews, "labels": labels, "tokens": tokens}, f)
     print("Saved tokens to cache.")
 
@@ -279,7 +294,7 @@ test_tokens = tokens[-num_test:]
 train_labels = labels[:num_train]
 test_labels = labels[-num_test:]
 
-user_tokens = tokenize(user_text)
+user_tokens = tokenize_with_emojis(user_text)
 
 for i, min_freq in enumerate(MIN_FREQ_VALUES, 1):
     print(f"=====================")
