@@ -228,8 +228,8 @@ def log_results(algorithm, min_freq, max_ratio, vocab_size, num_train, num_test,
                 sensitivity, specificity, precision, npv, accuracy, f_score, 
                 k=None, runtime=None):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    file_exists = os.path.exists("experiment_log.csv")
-    with open("experiment_log.csv", "a", newline="") as f:
+    file_exists = os.path.exists("desktop_experiment_log.csv")
+    with open("desktop_experiment_log.csv", "a", newline="") as f:
         writer = csv.writer(f)
         if not file_exists:
             writer.writerow(["timestamp", "algorithm", "min_freq", "max_ratio", "vocab_size", "k",
@@ -242,12 +242,24 @@ def log_results(algorithm, min_freq, max_ratio, vocab_size, num_train, num_test,
                          true_pos, true_neg, false_pos, false_neg, 
                          sensitivity, specificity, precision, npv, 
                          accuracy, f_score, runtime])
+        
+
+def log_user_input(user_text, algorithm, max_ratio, min_freq, prediction, k=None):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    file_exists = os.path.exists("desktop_user_input_log.csv")
+    
+    with open("desktop_user_input_log.csv", "a", newline="") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(["timestamp", "user_text", "algorithm", "max_ratio", "min_freq", "k", "prediction"])
+        
+        writer.writerow([timestamp, user_text, algorithm, max_ratio, min_freq, k, prediction])
 
 
 # Hyperparameters:
-MAX_RATIO = 1.0
-MIN_FREQ_VALUES = [1, 10, 100]
-K_VALUES = [3, 11, 51]
+MAX_RATIOS = [1.0, 1.1, 1.2, 1.3]
+MIN_FREQ_VALUES = [1, 10, 50, 100]
+K_VALUES = [3, 11, 21, 51]
 BATCH_SIZE = 1000
 
 path = "bumble_google_play_reviews.csv"
@@ -257,8 +269,8 @@ emoji_tokens_cache_path = "emoji_tokens_cache.pkl"
 user_text = input("Enter a review: ")
 
 # === Caching tokens to reduce runtime on subsequent runs ===
-if os.path.exists(emoji_tokens_cache_path):
-    with open(emoji_tokens_cache_path, "rb") as f:
+if os.path.exists(tokens_cache_path):           # CHANGE TO EMOJI_TOKENS_CACHE_PATH IF YOU WANT TO USE THE TOKENIZER THAT INCLUDES EMOJIS
+    with open(tokens_cache_path, "rb") as f:    # CHANGE TO EMOJI_TOKENS_CACHE_PATH IF YOU WANT TO USE THE TOKENIZER THAT INCLUDES EMOJIS
         data = pickle.load(f)
         reviews = data["reviews"]
         labels = data["labels"]
@@ -270,10 +282,10 @@ else:
     print(f"Cleaning: {time.time() - start:.2f}s")
 
     start = time.time()
-    tokens = [tokenize_with_emojis(review) for review in reviews]
+    tokens = [tokenize(review) for review in reviews]   # CHANGE TO tokenize_with_emojis IF YOU WANT TO USE THE TOKENIZER THAT INCLUDES EMOJIS
     print(f"Tokenization: {time.time() - start:.2f}s")
 
-    with open(emoji_tokens_cache_path, "wb") as f:
+    with open(tokens_cache_path, "wb") as f:            # CHANGE TO EMOJI_TOKENS_CACHE_PATH IF YOU WANT TO USE THE TOKENIZER THAT INCLUDES EMOJIS
         pickle.dump({"reviews": reviews, "labels": labels, "tokens": tokens}, f)
     print("Saved tokens to cache.")
 
@@ -294,99 +306,107 @@ test_tokens = tokens[-num_test:]
 train_labels = labels[:num_train]
 test_labels = labels[-num_test:]
 
-user_tokens = tokenize_with_emojis(user_text)
+user_tokens = tokenize(user_text)   # CHANGE TO tokenize_with_emojis IF YOU WANT TO USE THE TOKENIZER THAT INCLUDES EMOJIS
 
-for i, min_freq in enumerate(MIN_FREQ_VALUES, 1):
-    print(f"=====================")
-    print(f"=== EXPERIMENT {i} ===")
-    print(f"=====================\n")
-
-    start = time.time()
-    vocab = build_vocab(train_tokens, train_labels, min_freq=min_freq, max_ratio=MAX_RATIO)
-    train_csr = vectorize_docs(train_tokens, vocab)
-    test_csr = vectorize_docs(test_tokens, vocab)
-
-    # vectorizing user-input for classifying
-    user_csr = vectorize_docs([user_tokens], vocab)
-
-    # normalized training data to be used in KNN classification
-    norm_train_csr = normalize(train_csr)
-    
-    print(f"Vocabulary & Vectorization runtime: {time.time() - start:.2f}s")
-    print(f"Vocabulary size (min_freq={min_freq}): {len(vocab)}\n")
-
-    # ========================================
-    # === Part 1: Naive Bayes Calculations ===
-    # ========================================
-
-    start = time.time()
-    p_pos, p_neg, pos_probs, neg_probs = train_naive_bayes(train_csr, train_labels, vocab)
-    p_pos_given_doc, p_neg_given_doc, NB_preds = classify_naive_bayes(test_csr, p_pos, p_neg, pos_probs, neg_probs)
-    nb_runtime = time.time() - start
-
-    tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(NB_preds, test_labels)
-    print(f"Naive Bayes Results (min_freq={min_freq}):")
-    print(f"Classification time: {nb_runtime:.2f}s")
-    print("-------------------------")
-    print(f" - True Positive: {tp}")
-    print(f" - True Negative: {tn}")
-    print(f" - False Positive: {fp}")
-    print(f" - False Negative: {fn}")
-    print("-------------------------")
-    print(f" - Sensitivity: {sens}")
-    print(f" - Specificity: {spec}")
-    print(f" - Precision: {prec}")
-    print(f" - Negative Predictive Value: {npv}")
-    print("-------------------------")
-    print(f"Accuracy: {acc}")
-    print(f"F-Score: {f1}\n")
-
-    log_results("naive_bayes", min_freq=min_freq, max_ratio=MAX_RATIO, vocab_size=len(vocab), 
-                num_train=num_train, num_test=num_test, 
-                true_pos=tp, true_neg=tn, false_pos=fp, false_neg=fn,
-                sensitivity=sens, specificity=spec, precision=prec, npv=npv,
-                accuracy=acc, f_score=f1, runtime=f"{nb_runtime:.2f}s")
-    
-    p_pos_given_doc, p_neg_given_doc, user_NB_pred = classify_naive_bayes(user_csr, p_pos, p_neg, pos_probs, neg_probs)
-    print(f"User Naive Bayes (min_freq={min_freq}):")
-    print(f" - Probability of Positive Class: {p_pos_given_doc[0]}")
-    print(f" - Probability of Negative Class: {p_neg_given_doc[0]}")
-    print(f" - User Predicted Class: {user_NB_pred[0]}\n")
-
-    for k in K_VALUES:
-        
-        # ================================
-        # === Part 2: KNN Calculations ===
-        # ================================
+for ratio in MAX_RATIOS:
+    print(f"\n=== MAX_RATIO: {ratio} ===\n")
+    for i, min_freq in enumerate(MIN_FREQ_VALUES, 1):
+        print(f"=============================")
+        print(f"=== EXPERIMENT {i}: {min_freq} ===")
+        print(f"=============================\n")
 
         start = time.time()
-        knn_preds = classify_knn(test_csr, norm_train_csr, train_labels, k, batch_size=BATCH_SIZE)
-        knn_runtime = time.time() - start
+        vocab = build_vocab(train_tokens, train_labels, min_freq=min_freq, max_ratio=ratio)
+        train_csr = vectorize_docs(train_tokens, vocab)
+        test_csr = vectorize_docs(test_tokens, vocab)
 
-        tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(knn_preds, test_labels)
-        print(f"KNN Results (k={k}):")
-        print(f"Classification time: {knn_runtime:.2f}s")
-        print("-------------------------")
-        print(f" - True Positive: {tp}")
-        print(f" - True Negative: {tn}")
-        print(f" - False Positive: {fp}")
-        print(f" - False Negative: {fn}")
-        print("-------------------------")
-        print(f" - Sensitivity: {sens}")
-        print(f" - Specificity: {spec}")
-        print(f" - Precision: {prec}")
-        print(f" - Negative Predictive Value: {npv}")
-        print("-------------------------")
-        print(f"Accuracy: {acc}")
-        print(f"F-Score: {f1}\n")
+        # vectorizing user-input for classifying
+        user_csr = vectorize_docs([user_tokens], vocab)
 
-        log_results("knn", min_freq=min_freq, max_ratio=MAX_RATIO, vocab_size=len(vocab), k=k, 
-                num_train=num_train, num_test=num_test, 
-                true_pos=tp, true_neg=tn, false_pos=fp, false_neg=fn,
-                sensitivity=sens, specificity=spec, precision=prec, npv=npv,
-                accuracy=acc, f_score=f1, runtime=f"{knn_runtime:.2f}s")
+        # normalized training data to be used in KNN classification
+        norm_train_csr = normalize(train_csr)
         
-        user_knn_pred = classify_knn(user_csr, norm_train_csr, train_labels, k, batch_size=1000)
-        print(f"User KNN (k={k}):")
-        print(f" - User Predicted Class: {user_knn_pred[0]}\n")
+        print(f"Vocabulary & Vectorization runtime: {time.time() - start:.2f}s")
+        print(f"Vocabulary size (min_freq={min_freq}): {len(vocab)}\n")
 
+        # ========================================
+        # === Part 1: Naive Bayes Calculations ===
+        # ========================================
+
+        start = time.time()
+        p_pos, p_neg, pos_probs, neg_probs = train_naive_bayes(train_csr, train_labels, vocab)
+        p_pos_given_doc, p_neg_given_doc, NB_preds = classify_naive_bayes(test_csr, p_pos, p_neg, pos_probs, neg_probs)
+        nb_runtime = time.time() - start
+
+        tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(NB_preds, test_labels)
+        print(f"Naive Bayes Results (min_freq={min_freq}):")
+        print(f"Classification time: {nb_runtime:.2f}s")
+        print("-------------------------")
+        # print(f" - True Positive: {tp}")
+        # print(f" - True Negative: {tn}")
+        # print(f" - False Positive: {fp}")
+        # print(f" - False Negative: {fn}")
+        # print("-------------------------")
+        # print(f" - Sensitivity: {sens}")
+        # print(f" - Specificity: {spec}")
+        # print(f" - Precision: {prec}")
+        # print(f" - Negative Predictive Value: {npv}")
+        # print("-------------------------")
+        print(f"Accuracy: {acc * 100:.4f}%")
+        print(f"F-Score: {f1:.4f}\n")
+
+        log_results("naive_bayes", min_freq=min_freq, max_ratio=ratio, vocab_size=len(vocab), 
+                    num_train=num_train, num_test=num_test, 
+                    true_pos=tp, true_neg=tn, false_pos=fp, false_neg=fn,
+                    sensitivity=sens, specificity=spec, precision=prec, npv=npv,
+                    accuracy=acc, f_score=f1, runtime=f"{nb_runtime:.2f}s")
+        
+        p_pos_given_doc, p_neg_given_doc, user_NB_pred = classify_naive_bayes(user_csr, p_pos, p_neg, pos_probs, neg_probs)
+        
+        log_user_input(user_text, "naive_bayes", ratio, min_freq, user_NB_pred[0], None)
+        
+        print(f"User Naive Bayes (min_freq={min_freq}):")
+        print(f" - Probability of Positive Class: {p_pos_given_doc[0] * 100:.4f}%")
+        print(f" - Probability of Negative Class: {p_neg_given_doc[0] * 100:.4f}%")
+        print("-------------------------")
+        print(f" - User Predicted Class: {user_NB_pred[0]}\n")
+
+        for k in K_VALUES:
+            
+            # ================================
+            # === Part 2: KNN Calculations ===
+            # ================================
+
+            start = time.time()
+            knn_preds = classify_knn(test_csr, norm_train_csr, train_labels, k, batch_size=BATCH_SIZE)
+            knn_runtime = time.time() - start
+
+            tp, tn, fp, fn, sens, spec, prec, npv, acc, f1 = evaluate(knn_preds, test_labels)
+            print(f"KNN Results (k={k}, min_freq={min_freq}):")
+            print(f"Classification time: {knn_runtime:.2f}s")
+            print("-------------------------")
+            # print(f" - True Positive: {tp}")
+            # print(f" - True Negative: {tn}")
+            # print(f" - False Positive: {fp}")
+            # print(f" - False Negative: {fn}")
+            # print("-------------------------")
+            # print(f" - Sensitivity: {sens}")
+            # print(f" - Specificity: {spec}")
+            # print(f" - Precision: {prec}")
+            # print(f" - Negative Predictive Value: {npv}")
+            # print("-------------------------")
+            print(f"Accuracy: {acc * 100:.4f}%")
+            print(f"F-Score: {f1:.4f}\n")
+
+            log_results("knn", min_freq=min_freq, max_ratio=ratio, vocab_size=len(vocab), k=k, 
+                    num_train=num_train, num_test=num_test, 
+                    true_pos=tp, true_neg=tn, false_pos=fp, false_neg=fn,
+                    sensitivity=sens, specificity=spec, precision=prec, npv=npv,
+                    accuracy=acc, f_score=f1, runtime=f"{knn_runtime:.2f}s")
+            
+            user_knn_pred = classify_knn(user_csr, norm_train_csr, train_labels, k, batch_size=1000)
+            
+            log_user_input(user_text, "knn", ratio, min_freq, user_knn_pred[0], k)
+            
+            print(f"User KNN (k={k}, min_freq={min_freq}):")
+            print(f" - User Predicted Class: {user_knn_pred[0]}\n")
